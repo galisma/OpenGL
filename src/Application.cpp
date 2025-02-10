@@ -7,11 +7,13 @@
 #include <sstream>
 #include <string>
 
+// Return struct type
 struct ShaderProgramSource {
   std::string VertexSource;
   std::string FragmentSource;
 };
 
+// Shader parser function
 static ShaderProgramSource ParseShader(const std::string& filepath) {
   std::ifstream stream(filepath);
 
@@ -26,22 +28,22 @@ static ShaderProgramSource ParseShader(const std::string& filepath) {
         type = ShaderType::VERTEX;
       else if (line.find("fragment") != std::string::npos)
         type = ShaderType::FRAGMENT;
-    } else {
+    } else if (type != ShaderType::NONE) {
       ss[(int)type] << line << '\n';
-    }
+    }    
   }
 
   return {ss[0].str(), ss[1].str()};
 }
 
-// Función que compila un shader y devuelve su id
+// Shader compiler function
 static unsigned int CompileShader(unsigned int type, const std::string& source) {
   unsigned int id = glCreateShader(type);
   const char* src = source.c_str();
   glShaderSource(id, 1, &src, nullptr);
   glCompileShader(id);
 
-  // COMPROBACION DE ERROR
+  // Error handling
   int result;
   glGetShaderiv(id, GL_COMPILE_STATUS, &result);
   if (result == GL_FALSE) {
@@ -54,12 +56,12 @@ static unsigned int CompileShader(unsigned int type, const std::string& source) 
     glDeleteShader(id);
     return 0;
   }
-  // FIN DE COMPROBACION DE ERROR
+  // End of Error handling
 
   return id;
 }
 
-// Función que crea un programa de shaders y devuelve su id
+// Create shaders & return id function
 static unsigned int CreateShader(const std::string& vertexShader,
                                  const std::string& fragmentShader) {
   unsigned int program = glCreateProgram();
@@ -80,17 +82,17 @@ static unsigned int CreateShader(const std::string& vertexShader,
 int main(void) {
   GLFWwindow* window;
 
-  /* Inicializa la biblioteca */
+  /* Library initialization */
   if (!glfwInit()) return -1;
 
-  /* Crea una ventana con un contexto de OpenGL */
+  /* OpenGL context window */
   window = glfwCreateWindow(640, 480, "Hola mundo", NULL, NULL);
   if (!window) {
     glfwTerminate();
     return -1;
   }
 
-  /* Establece el contexto de la ventana */
+  /* Window context */
   glfwMakeContextCurrent(window);
 
   if (glewInit() != GLEW_OK) {
@@ -100,7 +102,7 @@ int main(void) {
 
   std::cout << glGetString(GL_VERSION) << std::endl;
 
-  // Vertices del triangulo
+  // Triangle vertices
   float positions[] = { 
     -0.5f, -0.5f, // 0
      0.5f, -0.5f, // 1
@@ -114,40 +116,42 @@ int main(void) {
     2, 3, 0
   };
 
+  // Vertex buffer
   unsigned int buffer;
   glGenBuffers(1, &buffer);
   glBindBuffer(GL_ARRAY_BUFFER, buffer);
   glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
 
 
-  // Habilitar el uso de la posición de los vértices en el shader
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+  // Vertex buffer enabler
   glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
 
   // Index buffer
   unsigned int ibo;
-  glGenBuffers(1, &buffer);
+  glGenBuffers(1, &ibo);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * 2 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
 
+  // Shader parser
   ShaderProgramSource source = ParseShader("src/res/shaders/Basic.shader");
   unsigned int shader = CreateShader(source.VertexSource, source.FragmentSource);
   glUseProgram(shader);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  /* Bucle principal */
+  /* Main loop */
   while (!glfwWindowShouldClose(window)) {
     /* Render here */
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Dibujar el triángulo
+    // Draw triangle
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
-    /* Intercambiar buffers */
+    /* Interchange buffers */
     glfwSwapBuffers(window);
 
-    /* Manejar eventos */
+    /* Event handling */
     glfwPollEvents();
   }
 
@@ -156,4 +160,5 @@ int main(void) {
   glfwTerminate();
   return 0;
 }
+
 
