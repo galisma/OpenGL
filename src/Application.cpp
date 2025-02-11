@@ -7,6 +7,27 @@
 #include <sstream>
 #include <string>
 
+#define ASSERT(x) if (!(x)) __builtin_trap();
+#define GLCall(x) GLClearError();\
+  x;\
+  ASSERT(GLLogCall(#x, __FILE__, __LINE__))
+
+// Error checking
+static void GLClearError()
+{
+  while (glGetError() != GL_NO_ERROR);
+}
+
+static bool GLLogCall(const char* function, const char* file, int line)
+{
+  while (GLenum error = glGetError())
+  {
+    std::cout << "[OpenGL Error] (" << error << ")" << function << " " << file << ":" << line << std::endl;
+    return false;
+  }
+  return true;
+}
+
 // Return struct type
 struct ShaderProgramSource {
   std::string VertexSource;
@@ -142,11 +163,12 @@ int main(void) {
 
   /* Main loop */
   while (!glfwWindowShouldClose(window)) {
+
     /* Render here */
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Draw triangle
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    GLCall(glDrawElements(GL_TRIANGLES, 6, GL_INT, nullptr));
 
     /* Interchange buffers */
     glfwSwapBuffers(window);
