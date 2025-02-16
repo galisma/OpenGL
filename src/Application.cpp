@@ -1,4 +1,7 @@
 // Application.cpp
+// #define STB_IMAGE_IMPLEMENTATION
+// #include "stb_image.h"
+
 #include <GL/glew.h>
 #include <glfw3.h>
 
@@ -26,7 +29,7 @@ static bool GLLogCall(const char* function, const char* file, int line)
     return false;
   }
   return true;
-}
+} 
 
 // Return struct type
 struct ShaderProgramSource {
@@ -116,6 +119,28 @@ int main(void) {
   /* Window context */
   glfwMakeContextCurrent(window);
 
+  glfwSwapInterval(1);
+
+  // _____ ICONO PERSONALIZADO ***POR HACER*** _____
+  // load image file
+  // int width, height, channels;
+  // unsigned char* iconPixels = stbi_load("res/icon/cubo.png", &width, &height, &channels, 4);
+  // if (!iconPixels) {
+  //     // Manejar error al cargar la imagen
+  //     glfwDestroyWindow(window);
+  //     glfwTerminate();
+  //     return -1;
+  // }
+
+  // // Preparar el objeto GLFWimage
+  // GLFWimage icon;
+  // icon.width = width;
+  // icon.height = height;
+  // icon.pixels = iconPixels;
+  // // Establecer el icono de la ventana
+  // glfwSetWindowIcon(window, 1, &icon);
+  // ________________________________________________
+
   if (glewInit() != GLEW_OK) {
     std::cout << "Error" << std::endl;
     return -1;
@@ -157,7 +182,15 @@ int main(void) {
   // Shader parser
   ShaderProgramSource source = ParseShader("src/res/shaders/Basic.shader");
   unsigned int shader = CreateShader(source.VertexSource, source.FragmentSource);
-  glUseProgram(shader);
+  GLCall(glUseProgram(shader));
+
+  // Uniform
+  int location = glGetUniformLocation(shader, "u_Color");
+  ASSERT(location != -1);
+  glUniform4f(location, 0.5f, 1.0f, 0.5f, 0.5f);
+
+  float r = 0.0f;
+  float increment = 0.05f;
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -166,9 +199,17 @@ int main(void) {
 
     /* Render here */
     glClear(GL_COLOR_BUFFER_BIT);
+    glUniform4f(location, r, 1.0f, 0.5f, 0.5f);
 
     // Draw triangle
-    GLCall(glDrawElements(GL_TRIANGLES, 6, GL_INT, nullptr));
+    GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+
+    if (r > 1.0f)
+      increment = -0.05f;
+    else if (r < 0.0f)
+      increment = 0.05f;
+
+    r += increment;
 
     /* Interchange buffers */
     glfwSwapBuffers(window);
