@@ -1,6 +1,4 @@
 // Application.cpp
-// #define STB_IMAGE_IMPLEMENTATION
-// #include "stb_image.h"
 
 #include <GL/glew.h>
 #include <glfw3.h>
@@ -10,34 +8,15 @@
 #include <sstream>
 #include <string>
 
-#define ASSERT(x) if (!(x)) __builtin_trap();
-#define GLCall(x) GLClearError();\
-  x;\
-  ASSERT(GLLogCall(#x, __FILE__, __LINE__))
+#include "Renderer.h"
 
-// Error checking
-static void GLClearError()
-{
-  while (glGetError() != GL_NO_ERROR);
-}
-
-static bool GLLogCall(const char* function, const char* file, int line)
-{
-  while (GLenum error = glGetError())
-  {
-    std::cout << "[OpenGL Error] (" << error << ")" << function << " " << file << ":" << line << std::endl;
-    return false;
-  }
-  return true;
-} 
-
-// Return struct type
+// Devuelve struct
 struct ShaderProgramSource {
   std::string VertexSource;
   std::string FragmentSource;
 };
 
-// Shader parser function
+// Shader parser
 static ShaderProgramSource ParseShader(const std::string& filepath) {
   std::ifstream stream(filepath);
 
@@ -60,14 +39,14 @@ static ShaderProgramSource ParseShader(const std::string& filepath) {
   return {ss[0].str(), ss[1].str()};
 }
 
-// Shader compiler function
+// Compilador de shader
 static unsigned int CompileShader(unsigned int type, const std::string& source) {
   unsigned int id = glCreateShader(type);
   const char* src = source.c_str();
   glShaderSource(id, 1, &src, nullptr);
   glCompileShader(id);
 
-  // Error handling
+  // Manejo de errores
   int result;
   glGetShaderiv(id, GL_COMPILE_STATUS, &result);
   if (result == GL_FALSE) {
@@ -80,12 +59,12 @@ static unsigned int CompileShader(unsigned int type, const std::string& source) 
     glDeleteShader(id);
     return 0;
   }
-  // End of Error handling
+  // Fin del manejo de errores
 
   return id;
 }
 
-// Create shaders & return id function
+// Crea shaders & devuelve funcion id
 static unsigned int CreateShader(const std::string& vertexShader,
                                  const std::string& fragmentShader) {
   unsigned int program = glCreateProgram();
@@ -106,7 +85,7 @@ static unsigned int CreateShader(const std::string& vertexShader,
 int main(void) {
   GLFWwindow* window;
 
-  /* Library initialization */
+  // Inicializacion libreria
   if (!glfwInit()) return -1;
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -119,30 +98,10 @@ int main(void) {
     return -1;
   }
 
-  /* Window context */
+  // Contexto de la ventana
   glfwMakeContextCurrent(window);
 
   glfwSwapInterval(1);
-
-  // _____ ICONO PERSONALIZADO ***POR HACER*** _____
-  // load image file
-  // int width, height, channels;
-  // unsigned char* iconPixels = stbi_load("res/icon/cubo.png", &width, &height, &channels, 4);
-  // if (!iconPixels) {
-  //     // Manejar error al cargar la imagen
-  //     glfwDestroyWindow(window);
-  //     glfwTerminate();
-  //     return -1;
-  // }
-
-  // // Preparar el objeto GLFWimage
-  // GLFWimage icon;
-  // icon.width = width;
-  // icon.height = height;
-  // icon.pixels = iconPixels;
-  // // Establecer el icono de la ventana
-  // glfwSetWindowIcon(window, 1, &icon);
-  // ________________________________________________
 
   if (glewInit() != GLEW_OK) {
     std::cout << "Error" << std::endl;
@@ -165,6 +124,7 @@ int main(void) {
     2, 3, 0
   };
 
+  // Vertex array
   unsigned int vao;
   GLCall(glGenVertexArrays(1, &vao));
   GLCall(glBindVertexArray(vao));
@@ -234,5 +194,3 @@ int main(void) {
   glfwTerminate();
   return 0;
 }
-
-
