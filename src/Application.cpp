@@ -10,6 +10,9 @@
 
 #include "Renderer.h"
 
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
+
 // Devuelve struct
 struct ShaderProgramSource {
   std::string VertexSource;
@@ -109,7 +112,7 @@ int main(void) {
   }
 
   std::cout << glGetString(GL_VERSION) << std::endl;
-
+  {
   // Triangle vertices
   float positions[] = { 
     -0.5f, -0.5f, // 0
@@ -130,20 +133,14 @@ int main(void) {
   GLCall(glBindVertexArray(vao));
 
   // Vertex buffer
-  unsigned int buffer;
-  GLCall(glGenBuffers(1, &buffer));
-  GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer));
-  GLCall(glBufferData(GL_ARRAY_BUFFER, 4 * 2 * sizeof(float), positions, GL_STATIC_DRAW));
+  VertexBuffer vb(positions, 4 * 2 * sizeof(float));
 
   // Vertex buffer enabler
   GLCall(glEnableVertexAttribArray(0));
   GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
 
   // Index buffer
-  unsigned int ibo;
-  GLCall(glGenBuffers(1, &ibo));
-  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo));
-  GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW));
+  IndexBuffer ib(indices, 6);
 
   // Shader parser
   ShaderProgramSource source = ParseShader("src/res/shaders/Basic.shader");
@@ -163,10 +160,10 @@ int main(void) {
   float r = 0.0f;
   float increment = 0.05f;
 
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
   /* Main loop */
   while (!glfwWindowShouldClose(window)) {
+
+    // Renderizar aqui
     glClear(GL_COLOR_BUFFER_BIT);
   
     // Activamos el shader para que las uniformes se apliquen correctamente.
@@ -174,7 +171,7 @@ int main(void) {
     GLCall(glUniform4f(location, r, 1.0f, 0.5f, 0.5f));
     
     GLCall(glBindVertexArray(vao));
-    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo));
+    ib.Bind();
   
     GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
   
@@ -185,12 +182,16 @@ int main(void) {
       increment = 0.05f;
     r += increment;
   
+    // Intercambiar front y back buffers
     glfwSwapBuffers(window);
+    
+    // Revisar y procesar eventos 
     glfwPollEvents();
   }
   
-  glDeleteProgram(shader);
-
+  GLCall(glDeleteProgram(shader));
+  }
+  // Borrar aqui
   glfwTerminate();
   return 0;
 }
