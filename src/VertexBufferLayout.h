@@ -47,38 +47,23 @@ void VertexBufferLayout::Push(unsigned int /*count*/) {
     static_assert(always_false<T>::value, "Tipo no soportado en VertexBufferLayout::Push");
 }
 
-// Especialización para float.
+// Especialización para float
 template<>
-void VertexBufferLayout::Push<float>(unsigned int count) {
+inline void VertexBufferLayout::Push<float>(unsigned int count) { // Agregar inline
     m_Elements.push_back({ GL_FLOAT, count, GL_FALSE });
     m_Stride += count * VertexBufferElement::GetSizeOfType(GL_FLOAT);
 }
 
-// Especialización para unsigned int.
+// Especialización para unsigned int
 template<>
-void VertexBufferLayout::Push<unsigned int>(unsigned int count) {
+inline void VertexBufferLayout::Push<unsigned int>(unsigned int count) { // Agregar inline
     m_Elements.push_back({ GL_UNSIGNED_INT, count, GL_FALSE });
     m_Stride += count * VertexBufferElement::GetSizeOfType(GL_UNSIGNED_INT);
 }
 
-// Especialización para unsigned char.
+// Especialización para unsigned char
 template<>
-void VertexBufferLayout::Push<unsigned char>(unsigned int count) {
+inline void VertexBufferLayout::Push<unsigned char>(unsigned int count) { // Agregar inline
     m_Elements.push_back({ GL_UNSIGNED_BYTE, count, GL_TRUE });
     m_Stride += count * VertexBufferElement::GetSizeOfType(GL_UNSIGNED_BYTE);
 }
-
-// VertexBuffer.h
-#pragma once
-
-class VertexBuffer
-{
-    private:
-        unsigned int m_RendererID;
-    public:
-        VertexBuffer(const void* data, unsigned int size);
-        ~VertexBuffer();
-
-        void Bind() const;
-        void Unbind() const;
-};
