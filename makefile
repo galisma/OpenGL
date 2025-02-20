@@ -1,5 +1,5 @@
 # Makefile
-SOURCE=src/Application.cpp src/IndexBuffer.cpp src/VertexBuffer.cpp src/Renderer.cpp
+SOURCE=src/Application.cpp src/IndexBuffer.cpp src/VertexBuffer.cpp src/Renderer.cpp src/VertexArray.cpp
 TARGET=bin/application
 CXX=g++
 CXXFLAGS=-Wall -g
@@ -8,6 +8,7 @@ INCLUDES=-Ilibs/GLFW/include -Ilibs/Glew/include
 DEFINES=-DGLEW_STATIC
 
 all: $(SOURCE)
+	mkdir -p bin
 	$(CXX) $(CXXFLAGS) $(DEFINES) $(INCLUDES) $(SOURCE) $(LIBS) -o $(TARGET)
 
 run: all

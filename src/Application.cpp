@@ -1,5 +1,4 @@
 // Application.cpp
-
 #include <GL/glew.h>
 #include <glfw3.h>
 
@@ -12,6 +11,7 @@
 
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
+#include "VertexArray.h"
 
 // Devuelve struct
 struct ShaderProgramSource {
@@ -36,7 +36,7 @@ static ShaderProgramSource ParseShader(const std::string& filepath) {
         type = ShaderType::FRAGMENT;
     } else if (type != ShaderType::NONE) {
       ss[(int)type] << line << '\n';
-    }    
+    }
   }
 
   return {ss[0].str(), ss[1].str()};
@@ -114,7 +114,7 @@ int main(void) {
   std::cout << glGetString(GL_VERSION) << std::endl;
   {
   // Triangle vertices
-  float positions[] = { 
+  float positions[] = {
     -0.5f, -0.5f, // 0
      0.5f, -0.5f, // 1
      0.5f,  0.5f, // 2
@@ -132,14 +132,11 @@ int main(void) {
   GLCall(glGenVertexArrays(1, &vao));
   GLCall(glBindVertexArray(vao));
 
-  // Vertex buffer
+  VertexArray va;
   VertexBuffer vb(positions, 4 * 2 * sizeof(float));
-
-  // Vertex buffer enabler
-  GLCall(glEnableVertexAttribArray(0));
-  GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
-
-  // Index buffer
+  VertexBufferLayout layout;
+  layout.Push<float>(2);
+  va.AddBuffer(vb, layout);
   IndexBuffer ib(indices, 6);
 
   // Shader parser
@@ -152,11 +149,6 @@ int main(void) {
   ASSERT(location != -1);
   glUniform4f(location, 0.5f, 1.0f, 0.5f, 0.5f);
 
-  // Unbind
-  GLCall(glBindVertexArray(0));
-  GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
-  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
-
   float r = 0.0f;
   float increment = 0.05f;
 
@@ -165,30 +157,30 @@ int main(void) {
 
     // Renderizar aqui
     glClear(GL_COLOR_BUFFER_BIT);
-  
+
     // Activamos el shader para que las uniformes se apliquen correctamente.
-    GLCall(glUseProgram(shader));  
+    GLCall(glUseProgram(shader));
     GLCall(glUniform4f(location, r, 1.0f, 0.5f, 0.5f));
-    
-    GLCall(glBindVertexArray(vao));
+
+    va.Bind();
     ib.Bind();
-  
+
     GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
-  
+
     // Lógica para modificar el valor de r
     if (r > 1.0f)
       increment = -0.05f;
     else if (r < 0.0f)
       increment = 0.05f;
     r += increment;
-  
+
     // Intercambiar front y back buffers
     glfwSwapBuffers(window);
-    
-    // Revisar y procesar eventos 
+
+    // Revisar y procesar eventos
     glfwPollEvents();
   }
-  
+
   GLCall(glDeleteProgram(shader));
   }
   // Borrar aqui
