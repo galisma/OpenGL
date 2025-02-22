@@ -1,5 +1,5 @@
 # Makefile
-SOURCE=src/Application.cpp src/IndexBuffer.cpp src/VertexBuffer.cpp src/Renderer.cpp src/VertexArray.cpp
+SOURCE=src/Application.cpp src/IndexBuffer.cpp src/VertexBuffer.cpp src/Renderer.cpp src/VertexArray.cpp src/Shader.cpp
 TARGET=bin/application
 CXX=g++
 CXXFLAGS=-Wall -g

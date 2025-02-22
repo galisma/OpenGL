@@ -5,7 +5,9 @@
 
 VertexArray::VertexArray() { GLCall(glGenVertexArrays(1, &m_RendererID)); }
 
-VertexArray::~VertexArray() { GLCall(glGenVertexArrays(1, &m_RendererID)); }
+VertexArray::~VertexArray() {
+  GLCall(glDeleteVertexArrays(1, &m_RendererID));  // Antes era glGenVertexArrays
+}
 
 void VertexArray::AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout) {
   Bind();
