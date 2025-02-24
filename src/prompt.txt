@@ -1,0 +1,520 @@
+// Application.cpp
+#include <GL/glew.h>
+#include <glfw3.h>
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+
+#include "Renderer.h"
+
+#include "VertexBuffer.h"
+#include "VertexBufferLayout.h"
+#include "IndexBuffer.h"
+#include "VertexArray.h"
+#include "Renderer.h"
+
+#include "Shader.h"
+
+int main(void) {
+  GLFWwindow* window;
+
+  if (!glfwInit()) return -1;
+  glViewport(0, 0, 640, 480);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  /* OpenGL context window */
+  window = glfwCreateWindow(640, 480, "Hola mundo", NULL, NULL);
+  if (!window) {
+    glfwTerminate();
+    return -1;
+  }
+
+  glfwMakeContextCurrent(window);
+  glfwSwapInterval(1);
+
+  if (glewInit() != GLEW_OK) {
+    std::cout << "Error" << std::endl;
+    return -1;
+  }
+
+  std::cout << glGetString(GL_VERSION) << std::endl;
+  {
+
+  float positions[] = {
+    -0.5f, -0.5f, // 0
+     0.5f, -0.5f, // 1
+     0.5f,  0.5f, // 2
+    -0.5f,  0.5f, // 3
+  };
+
+  unsigned int indices[] = {
+    0, 1, 2,
+    2, 3, 0
+  };
+
+  VertexArray va;
+  VertexBuffer vb(positions, 4 * 2 * sizeof(float));
+
+  VertexBufferLayout layout;
+  layout.Push<float>(2);
+  va.AddBuffer(vb, layout);
+
+  IndexBuffer ib(indices, 6);
+
+  Shader shader("./src/res/shaders/Basic.shader");
+  shader.Bind();
+  shader.SetUniform4f("u_Color", 0.5f, 1.0f, 0.5f, 0.5f);
+
+  va.Unbind();
+  shader.Unbind();
+  vb.Unbind();
+  ib.Unbind();
+
+  Renderer renderer;
+
+  float r = 0.0f;
+  float increment = 0.05f;
+
+  /* Main loop */
+  while (!glfwWindowShouldClose(window)) {
+
+    // Renderizar aqui
+    renderer.Clear();
+
+    shader.Bind();
+    shader.SetUniform4f("u_Color", r, 0.3f, 0.8f, 1.0f);
+
+    renderer.Draw(va, ib, shader);
+
+    if (r > 1.0f)
+      increment = -0.05f;
+  
+    else if (r < 0.0f)
+      increment = 0.05f;
+
+    r += increment;
+
+    glfwSwapBuffers(window);
+    glfwPollEvents();
+  }
+  }
+  // Borrar aqui
+  glfwTerminate();
+  return 0;
+}// IndexBuffer.cpp
+#include "IndexBuffer.h"
+#include "Renderer.h"
+
+IndexBuffer::IndexBuffer(const unsigned int* data, unsigned int count)
+  : m_Count(count)
+{
+  ASSERT(sizeof(unsigned int) == sizeof(GLuint));
+
+  GLCall(glGenBuffers(1, &m_RendererID));
+  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID));
+  GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data, GL_STATIC_DRAW));
+}
+
+IndexBuffer::~IndexBuffer() {
+  GLCall(glDeleteBuffers(1, &m_RendererID));  // Antes era glGenBuffers
+}
+
+void IndexBuffer::Bind() const
+{
+    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID));
+}
+
+void IndexBuffer::Unbind() const
+ {
+    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+ }// IndexBuffer.h
+#pragma once
+
+class IndexBuffer {
+    private:
+        unsigned int m_RendererID;
+        unsigned int m_Count;
+    public:
+        IndexBuffer(const unsigned int* data, unsigned int count);
+        ~IndexBuffer();
+
+        void Bind() const;
+        void Unbind() const;
+
+        inline unsigned int GetCount() const { return m_Count; }
+
+
+};//  Renderer.cpp
+#include "Renderer.h"
+#include <iostream>
+
+void GLClearError()
+{
+    while (glGetError() != GL_NO_ERROR);
+}
+
+bool GLLogCall(const char* function, const char* file, int line){
+    while (GLenum error = glGetError()){
+        std::cout << "[OpenGL Error] (" << error << ") "
+                  << function << " " << file << ":" << line << std::endl;
+        return true;
+    }
+    return true;
+}
+
+void Renderer::Clear() const
+{
+  GLCall(glClear(GL_COLOR_BUFFER_BIT));
+};
+
+void Renderer::Draw(const VertexArray& va, const IndexBuffer& ib, const Shader& shader) const{
+    shader.Bind();
+    va.Bind();
+    ib.Bind();
+    GLCall(glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, nullptr));
+
+};// Renderer.h
+#pragma once
+#include <GL/glew.h>
+
+#include "VertexArray.h"
+#include "IndexBuffer.h"
+#include "Shader.h"
+
+#define ASSERT(x) if (!(x)) __builtin_trap();
+#define GLCall(x) GLClearError();\
+  x;\
+  ASSERT(GLLogCall(#x, __FILE__, __LINE__))
+
+void GLClearError();
+
+bool GLLogCall(const char* function, const char* file, int line);
+
+class Renderer{
+  public:
+  void Clear() const;
+  void Draw(const VertexArray& va, const IndexBuffer& ib, const Shader& shader) const;
+};// Shader.cpp
+#include <string>
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
+#include "Renderer.h"
+#include "Shader.h"
+Shader::Shader(const std::string& filepath)
+    : m_FilePath(filepath), m_RendererID(0) {
+        ShaderProgramSource source = ParseShader(filepath);
+        m_RendererID = CreateShader(source.VertexSource, source.FragmentSource);
+};
+
+Shader::~Shader() {
+  GLCall(glDeleteProgram(m_RendererID));
+}
+
+// Shader parser
+ShaderProgramSource Shader::ParseShader(const std::string& filepath) {
+  std::ifstream stream(filepath);
+
+  if (!stream.is_open()) {
+    std::cerr << "Error: No se pudo abrir el archivo del shader: " << filepath << std::endl;
+    return {"", ""};
+  }
+
+  enum class ShaderType { NONE = -1, VERTEX = 0, FRAGMENT = 1 };
+
+  std::string line;
+  std::stringstream ss[2];
+  ShaderType type = ShaderType::NONE;
+  while (getline(stream, line)) {
+    if (line.find("#shader") != std::string::npos) {
+      if (line.find("vertex") != std::string::npos)
+        type = ShaderType::VERTEX;
+      else if (line.find("fragment") != std::string::npos)
+        type = ShaderType::FRAGMENT;
+    } else if (type != ShaderType::NONE) {
+      ss[(int)type] << line << '\n';
+    }
+  }
+
+  std::cout << "Vertex Shader:\n" << ss[0].str() << std::endl;
+  std::cout << "Fragment Shader:\n" << ss[1].str() << std::endl;
+
+  return {ss[0].str(), ss[1].str()};
+}
+
+// Compilador de shader
+unsigned int Shader::CompileShader(unsigned int type, const std::string& source) {
+  GLCall(unsigned int id = glCreateShader(type));
+  const char* src = source.c_str();
+  GLCall(glShaderSource(id, 1, &src, nullptr));
+  GLCall(glCompileShader(id));
+
+  // Manejo de errores
+  int result;
+  glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+  if (result == GL_FALSE) {
+    int length;
+    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
+    char* message = (char*)alloca(length * sizeof(char));
+    glGetShaderInfoLog(id, length, &length, message);
+    std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader" << std::endl; std::cout << message << std::endl;
+    glDeleteShader(id);
+    return 0;
+  }
+  // Fin del manejo de errores
+
+  return id;
+}
+
+unsigned int Shader::CreateShader(const std::string& vertexShader,
+                                  const std::string& fragmentShader) {
+  unsigned int program = glCreateProgram();
+  unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
+  unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
+
+  glAttachShader(program, vs);
+  glAttachShader(program, fs);
+  glLinkProgram(program);
+
+  // Verificación de linkeo
+  GLint linkStatus;
+  glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
+  if (linkStatus == GL_FALSE) {
+    GLint length;
+    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
+    char* message = (char*)alloca(length);
+    glGetProgramInfoLog(program, length, &length, message);
+    std::cout << "Error de enlace del programa:\n" << message << std::endl;
+    glDeleteProgram(program);
+    return 0;
+  }
+  // Fin de verificación
+
+  glValidateProgram(program);
+
+  glDeleteShader(vs);
+  glDeleteShader(fs);
+
+  return program;
+}
+
+void Shader::Bind() const
+{
+    GLCall(glUseProgram(m_RendererID));
+}
+
+void Shader::Unbind() const
+{
+    GLCall(glUseProgram(0));
+}
+
+void Shader::SetUniform4f(const std::string& name, float v0, float v1, float v2, float v3)
+{
+    GLCall(glUniform4f(GetUniformLocation(name), v0, v1, v2, v3));
+}
+
+int Shader::GetUniformLocation(const std::string& name) {
+    if (m_UniformLocationCache.find(name) != m_UniformLocationCache.end())
+        return m_UniformLocationCache[name];
+
+    GLCall(int location = glGetUniformLocation(m_RendererID, name.c_str()));
+    if (location == -1)
+        std::cout << "Advertencia: uniform '" << name << "' no encontrado." << std::endl;
+
+    m_UniformLocationCache[name] = location;
+    return location;
+}
+// Shader.h
+#pragma once
+#include <string>
+#include <unordered_map>
+
+struct ShaderProgramSource {
+    std::string VertexSource;
+    std::string FragmentSource;
+};
+  
+class Shader {
+ private:
+  std::string m_FilePath;
+  unsigned int m_RendererID;
+  std::unordered_map<std::string, int> m_UniformLocationCache;
+
+ public:
+  Shader(const std::string& filepath);
+  ~Shader();
+
+  void Bind() const;
+  void Unbind() const;
+
+  // Set uniform
+  void SetUniform4f(const std::string& name, float v0, float v1, float v2, float v3);
+
+ private:
+ ShaderProgramSource ParseShader(const std::string& filepath);
+  unsigned int CompileShader(unsigned int type, const std::string& source);
+  unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader);
+  int GetUniformLocation(const std::string& name);
+};// VertexArray.cpp
+#include "VertexArray.h"
+
+#include "Renderer.h"
+
+VertexArray::VertexArray() { GLCall(glGenVertexArrays(1, &m_RendererID)); }
+
+VertexArray::~VertexArray() {
+  GLCall(glDeleteVertexArrays(1, &m_RendererID));  // Antes era glGenVertexArrays
+}
+
+void VertexArray::AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout) {
+  Bind();
+  vb.Bind();
+  // Corregir GetElement() -> GetElements()
+  const auto& elements = layout.GetElements(); // <- Aquí el cambio
+  unsigned int offset = 0;
+  for (unsigned int i = 0; i < elements.size(); i++) {
+    const auto& element = elements[i];
+    GLCall(glEnableVertexAttribArray(i));
+    GLCall(glVertexAttribPointer(
+        i, element.count, element.type, element.normalized, layout.GetStride(),
+        (const void*)(static_cast<uintptr_t>(offset)) // <- Cast modificado
+    ));
+    offset += element.count * VertexBufferElement::GetSizeOfType(element.type);
+  }
+}
+
+void VertexArray::Bind() const {
+    GLCall(glBindVertexArray(m_RendererID));
+}
+
+void VertexArray::Unbind() const { GLCall(glBindVertexArray(0)); }// VertexArray.h
+#pragma once
+#include "VertexBuffer.h"
+
+class VertexBufferLayout;
+
+class VertexArray {
+ private:
+  unsigned int m_RendererID;
+
+ public:
+  VertexArray();
+  ~VertexArray();
+
+  void AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout);
+
+  void Bind() const;
+  void Unbind() const;
+};// VertexBuffer.cpp
+#include "VertexBuffer.h"
+#include "VertexBufferLayout.h"
+#include "Renderer.h"
+
+VertexBuffer::VertexBuffer(const void* data, unsigned int size)
+{
+  GLCall(glGenBuffers(1, &m_RendererID));
+  GLCall(glBindBuffer(GL_ARRAY_BUFFER, m_RendererID));
+  GLCall(glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW));
+}
+
+VertexBuffer::~VertexBuffer() {
+  GLCall(glDeleteBuffers(1, &m_RendererID));
+}
+
+void VertexBuffer::Bind() const
+{
+    GLCall(glBindBuffer(GL_ARRAY_BUFFER, m_RendererID));
+}
+
+
+void VertexBuffer::Unbind() const
+ {
+    GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+ }// VertexBuffer.h
+#pragma once
+
+class VertexBuffer
+{
+    private:
+        unsigned int m_RendererID;
+    public:
+        VertexBuffer(const void* data, unsigned int size);
+        ~VertexBuffer();
+
+        void Bind() const;
+        void Unbind() const;
+};// VertexBufferLayout.h
+#pragma once
+#include <GL/glew.h>
+#include "Renderer.h"
+#include <stdexcept>
+#include <vector>
+
+// Estructura que describe cada elemento del buffer.
+struct VertexBufferElement {
+    unsigned int type;
+    unsigned int count;
+    unsigned char normalized;
+
+    static unsigned int GetSizeOfType(unsigned int type) {
+        switch (type) {
+            case GL_FLOAT:         return 4;
+            case GL_UNSIGNED_INT:  return 4;
+            case GL_UNSIGNED_BYTE: return 1;
+        }
+        ASSERT(false);
+        return 0;
+    }
+};
+
+class VertexBufferLayout {
+private:
+    std::vector<VertexBufferElement> m_Elements;
+    unsigned int m_Stride;
+public:
+    VertexBufferLayout() : m_Stride(0) {}
+
+    // Declaramos la función plantilla sin definirla aquí.
+    template<typename T>
+    void Push(unsigned int count);
+
+    inline const std::vector<VertexBufferElement>& GetElements() const { return m_Elements; }
+    inline unsigned int GetStride() const { return m_Stride; }
+};
+
+// Utilidad para generar un static_assert dependiente de T.
+template<typename T>
+struct always_false : std::false_type {};
+
+// Definición del template genérico: si se intenta usar un tipo no soportado se produce un error en tiempo de compilación.
+template<typename T>
+void VertexBufferLayout::Push(unsigned int /*count*/) {
+    static_assert(always_false<T>::value, "Tipo no soportado en VertexBufferLayout::Push");
+}
+
+// Especialización para float
+template<>
+inline void VertexBufferLayout::Push<float>(unsigned int count) { // Agregar inline
+    m_Elements.push_back({ GL_FLOAT, count, GL_FALSE });
+    m_Stride += count * VertexBufferElement::GetSizeOfType(GL_FLOAT);
+}
+
+// Especialización para unsigned int
+template<>
+inline void VertexBufferLayout::Push<unsigned int>(unsigned int count) { // Agregar inline
+    m_Elements.push_back({ GL_UNSIGNED_INT, count, GL_FALSE });
+    m_Stride += count * VertexBufferElement::GetSizeOfType(GL_UNSIGNED_INT);
+}
+
+// Especialización para unsigned char
+template<>
+inline void VertexBufferLayout::Push<unsigned char>(unsigned int count) { // Agregar inline
+    m_Elements.push_back({ GL_UNSIGNED_BYTE, count, GL_TRUE });
+    m_Stride += count * VertexBufferElement::GetSizeOfType(GL_UNSIGNED_BYTE);
+}

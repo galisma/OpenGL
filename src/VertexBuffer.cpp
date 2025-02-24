@@ -1,5 +1,6 @@
 // VertexBuffer.cpp
 #include "VertexBuffer.h"
+#include "VertexBufferLayout.h"
 #include "Renderer.h"
 
 VertexBuffer::VertexBuffer(const void* data, unsigned int size)
@@ -10,7 +11,7 @@ VertexBuffer::VertexBuffer(const void* data, unsigned int size)
 }
 
 VertexBuffer::~VertexBuffer() {
-  GLCall(glDeleteBuffers(1, &m_RendererID));  // Antes era glGenBuffers
+  GLCall(glDeleteBuffers(1, &m_RendererID));
 }
 
 void VertexBuffer::Bind() const
