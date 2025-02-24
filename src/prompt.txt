@@ -14,6 +14,7 @@
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "Renderer.h"
+#include "Texture.h"
 
 #include "Shader.h"
 
@@ -45,10 +46,10 @@ int main(void) {
   {
 
   float positions[] = {
-    -0.5f, -0.5f, // 0
-     0.5f, -0.5f, // 1
-     0.5f,  0.5f, // 2
-    -0.5f,  0.5f, // 3
+    -0.5f, -0.5f, 0.0f, 0.0f,// 0
+     0.5f, -0.5f, 1.0f, 0.0f,// 1
+     0.5f,  0.5f, 1.0f, 1.0f,// 2
+    -0.5f,  0.5f, 0.0f, 1.0f,// 3
   };
 
   unsigned int indices[] = {
@@ -57,17 +58,22 @@ int main(void) {
   };
 
   VertexArray va;
-  VertexBuffer vb(positions, 4 * 2 * sizeof(float));
+  VertexBuffer vb(positions, 4 * 4 * sizeof(float));
 
   VertexBufferLayout layout;
+  layout.Push<float>(2);
   layout.Push<float>(2);
   va.AddBuffer(vb, layout);
 
   IndexBuffer ib(indices, 6);
 
-  Shader shader("./src/res/shaders/Basic.shader");
+  Shader shader("./src/res/shaders/Basic.glsl");
   shader.Bind();
   shader.SetUniform4f("u_Color", 0.5f, 1.0f, 0.5f, 0.5f);
+
+  Texture texture("./src/res/textures/pou_sexo.png");
+  texture.Bind();
+  shader.SetUniform1i("u_Texture", 0);
 
   va.Unbind();
   shader.Unbind();
@@ -314,6 +320,16 @@ void Shader::Unbind() const
     GLCall(glUseProgram(0));
 }
 
+void Shader::SetUniform1i(const std::string& name, int value)
+{
+    GLCall(glUniform1i(GetUniformLocation(name), value));
+}
+
+void Shader::SetUniform1f(const std::string& name, float value)
+{
+    GLCall(glUniform1f(GetUniformLocation(name), value));
+}
+
 void Shader::SetUniform4f(const std::string& name, float v0, float v1, float v2, float v3)
 {
     GLCall(glUniform4f(GetUniformLocation(name), v0, v1, v2, v3));
@@ -329,8 +345,7 @@ int Shader::GetUniformLocation(const std::string& name) {
 
     m_UniformLocationCache[name] = location;
     return location;
-}
-// Shader.h
+}// Shader.h
 #pragma once
 #include <string>
 #include <unordered_map>
@@ -353,7 +368,9 @@ class Shader {
   void Bind() const;
   void Unbind() const;
 
-  // Set uniform
+  // Set uniforms
+  void SetUniform1i(const std::string& name, int value);
+  void SetUniform1f(const std::string& name, float value);
   void SetUniform4f(const std::string& name, float v0, float v1, float v2, float v3);
 
  private:
@@ -361,9 +378,70 @@ class Shader {
   unsigned int CompileShader(unsigned int type, const std::string& source);
   unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader);
   int GetUniformLocation(const std::string& name);
-};// VertexArray.cpp
-#include "VertexArray.h"
+};// Texture.cpp
+#include "Texture.h"
+#include "vendor/stb_image.h"
+Texture::Texture(const std::string& path)
+    : m_RendererID(0), m_FilePath(path), m_LocalBuffer(nullptr),
+    m_Width(0), m_Height(0), m_BPP(0)
+{
+    stbi_set_flip_vertically_on_load(1);
+    m_LocalBuffer = stbi_load(m_FilePath.c_str(), &m_Width, &m_Height, &m_BPP, 4);
 
+    GLCall(glGenTextures(1, &m_RendererID));
+    GLCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
+
+    GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+
+    GLCall(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_Width, m_Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_LocalBuffer));
+    GLCall(glBindTexture(GL_TEXTURE_2D, 0));
+
+    if (m_LocalBuffer)
+        stbi_image_free(m_LocalBuffer);
+}
+
+Texture::~Texture()
+{
+    GLCall(glDeleteTextures(1, &m_RendererID));
+}
+
+void Texture::Bind(unsigned int slot) const
+{
+    GLCall(glActiveTexture(GL_TEXTURE0 + slot));
+    GLCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
+}
+
+void Texture::Unbind() const
+{
+    GLCall(glBindTexture(GL_TEXTURE_2D, 0));
+}
+// Texture.h
+#pragma once
+
+#include "Renderer.h"
+
+class Texture 
+{
+    private:
+        unsigned int m_RendererID;
+        std::string m_FilePath;
+        unsigned char* m_LocalBuffer;
+        int m_Width, m_Height, m_BPP;
+    public:
+        Texture(const std::string& path);
+        ~Texture();
+
+        void Bind(unsigned int slot = 0) const;
+        void Unbind() const;
+
+        inline int GetWidth() const { return m_Width; }
+        inline int GetHeight() const { return m_Height; }
+    };// VertexArray.cpp
+#include "VertexArray.h"
+#include "VertexBufferLayout.h"
 #include "Renderer.h"
 
 VertexArray::VertexArray() { GLCall(glGenVertexArrays(1, &m_RendererID)); }
